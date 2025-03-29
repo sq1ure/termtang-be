@@ -1,3 +1,5 @@
+// controllers/userController.js
+
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
@@ -5,10 +7,11 @@ const dotenv = require('dotenv');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+
 const User = require('../models/User');
-const Review = require('./models/Review');
-const PointTransaction = require('./models/PointTransaction');
-const PurchasePointTransaction = require('./models/PurchasePointTransaction');
+const Review = require('../models/Review');
+const PointTransaction = require('../models/PointTransaction');
+const PurchaseTransaction = require('../models/PurchaseTransaction'); // Ensure this model exists
 
 dotenv.config();
 
@@ -40,14 +43,18 @@ const loginUser = async (req, res) => {
         const isMatch = await user.comparePassword(password);
         if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
 
-        const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        const token = jwt.sign(
+            { id: user._id, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
         res.json({ token });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 };
 
-
+// Logout user
 const logoutUser = (req, res) => {
     req.session.destroy((err) => {
         if (err) {
@@ -57,7 +64,7 @@ const logoutUser = (req, res) => {
     });
 };
 
-
+// Set up Nodemailer transporter for password reset emails
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -66,6 +73,7 @@ const transporter = nodemailer.createTransport({
     },
 });
 
+// Helper function to send reset email
 const sendResetEmail = (email, token) => {
     const resetLink = `http://localhost:3002/reset-password/${token}`;
     const mailOptions = {
@@ -84,7 +92,7 @@ const sendResetEmail = (email, token) => {
     });
 };
 
-
+// Forgot Password - Sends a reset email
 const forgotPassword = async (req, res) => {
     const { email } = req.body;
 
@@ -94,7 +102,8 @@ const forgotPassword = async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        const token = jwt.sign({ email: user.email }, 'your-secret-key', { expiresIn: '1h' });
+        // Use the JWT secret from the environment variable
+        const token = jwt.sign({ email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
         sendResetEmail(user.email, token);
 
         return res.status(200).json({ message: 'Password reset email sent' });
@@ -103,12 +112,13 @@ const forgotPassword = async (req, res) => {
     }
 };
 
+// Reset Password - Updates the user password
 const resetPassword = async (req, res) => {
     const { token } = req.params;
     const { newPassword } = req.body;
 
     try {
-        const decoded = jwt.verify(token, 'your-secret-key');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const user = await User.findOne({ email: decoded.email });
 
         if (!user) {
@@ -125,6 +135,7 @@ const resetPassword = async (req, res) => {
     }
 };
 
+// Create a review
 const reviewCreate = async (req, res) => {
     const { userId, productId, rating, reviewText } = req.body;
 
@@ -148,6 +159,7 @@ const reviewCreate = async (req, res) => {
     }
 };
 
+// Update a review
 const reviewUpdate = async (req, res) => {
     const { reviewId } = req.params;
     const { rating, reviewText } = req.body;
@@ -174,12 +186,13 @@ const reviewUpdate = async (req, res) => {
     }
 };
 
+// Get user profile
 const getProfile = async (req, res) => {
     try {
-        // Assume the user is authenticated and user ID is in req.user (from JWT middleware)
-        const userId = req.user._id;  // If you're using JWT, the user info should be in req.user
+        // Assume authentication middleware attaches user info to req.user
+        const userId = req.user._id;
 
-        const user = await User.findById(userId).select('-password');  // Exclude password field
+        const user = await User.findById(userId).select('-password');
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
@@ -187,7 +200,7 @@ const getProfile = async (req, res) => {
 
         res.json({
             user: {
-                name: user.name,
+                name: user.username,
                 email: user.email,
                 profilePicture: user.profilePicture,
                 bio: user.bio,
@@ -199,33 +212,29 @@ const getProfile = async (req, res) => {
     }
 };
 
-
+// Update user profile
 const updateProfile = async (req, res) => {
     try {
-        // Assume the user is authenticated and user ID is in req.user (from JWT middleware)
         const userId = req.user._id;
-
         const { name, email, profilePicture, bio } = req.body;
 
-        // Find the user and update the profile information
         const user = await User.findById(userId);
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        // Update the profile fields (only the ones provided in the request body)
-        if (name) user.name = name;
+        if (name) user.username = name;
         if (email) user.email = email;
         if (profilePicture) user.profilePicture = profilePicture;
         if (bio) user.bio = bio;
 
-        await user.save();  // Save the updated user
+        await user.save();
 
         res.json({
             message: 'Profile updated successfully',
             user: {
-                name: user.name,
+                name: user.username,
                 email: user.email,
                 profilePicture: user.profilePicture,
                 bio: user.bio,
@@ -237,39 +246,33 @@ const updateProfile = async (req, res) => {
     }
 };
 
-// Function to get user points
+// Get user points
 const getUserPoints = async (req, res) => {
     try {
-        // Assuming the user is authenticated and the user ID is available in req.user (from JWT middleware)
         const userId = req.user._id;
-
-        // Find the user and get the points field
-        const user = await User.findById(userId).select('points');  // Select only the points field
+        const user = await User.findById(userId).select('points');
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        // Return the points balance for the user
-        res.json({
-            points: user.points,  // Return the points value from the user document
-        });
+        res.json({ points: user.points });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Error fetching user points' });
     }
 };
 
-// Get point history list
+// Get point history with pagination
 const getPointHistory = async (req, res) => {
-    const userId = req.user._id;  // From authenticated user (JWT)
-    const { page = 1, limit = 10 } = req.query;  // Default to page 1 and limit 10
+    const userId = req.user._id;
+    const { page = 1, limit = 10 } = req.query;
 
     try {
         const pointHistory = await PointTransaction.find({ userId })
-            .skip((page - 1) * limit)  // Pagination (skip records)
-            .limit(limit)  // Limit the number of records per page
-            .sort({ createdAt: -1 });  // Sort by most recent first
+            .skip((page - 1) * limit)
+            .limit(Number(limit))
+            .sort({ createdAt: -1 });
 
         res.json({
             pointHistory: pointHistory.map(tx => ({
@@ -285,7 +288,7 @@ const getPointHistory = async (req, res) => {
     }
 };
 
-// Get point history details by transactionId
+// Get details of a specific point transaction
 const getPointTransactionDetails = async (req, res) => {
     const { transactionId } = req.params;
 
@@ -296,7 +299,6 @@ const getPointTransactionDetails = async (req, res) => {
             return res.status(404).json({ message: 'Transaction not found' });
         }
 
-        // Check if the transaction belongs to the authenticated user
         if (transaction.userId.toString() !== req.user._id.toString()) {
             return res.status(403).json({ message: 'You are not authorized to view this transaction' });
         }
@@ -315,21 +317,21 @@ const getPointTransactionDetails = async (req, res) => {
     }
 };
 
-// Configure multer to handle file uploads (payment receipt image)
+// Configure multer for file uploads (payment receipt)
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'uploads/receipts');  // Upload directory
+        cb(null, 'uploads/receipts'); // Ensure this folder exists
     },
     filename: (req, file, cb) => {
-        cb(null, Date.now() + path.extname(file.originalname));  // Use a timestamp for the filename
+        cb(null, Date.now() + path.extname(file.originalname));
     },
 });
 
-const upload = multer({ storage }).single('paymentReceipt');  // 'paymentReceipt' is the name of the form field
+const upload = multer({ storage }).single('paymentReceipt');
 
-
-// Purchase Points API
+// Purchase points endpoint
 const purchasePoints = async (req, res) => {
+    // Use multer to handle file upload first
     upload(req, res, async (err) => {
         if (err) {
             return res.status(500).json({ message: 'Error uploading payment receipt' });
@@ -337,19 +339,17 @@ const purchasePoints = async (req, res) => {
 
         const { pointsAmount, paymentMethod } = req.body;
 
-        // Validate the inputs
         if (!pointsAmount || !paymentMethod || !req.file) {
             return res.status(400).json({ message: 'Missing required fields' });
         }
 
-        // Create a new purchase transaction
         try {
             const newTransaction = new PurchaseTransaction({
-                userId: req.user._id,  // Assuming user is authenticated
+                userId: req.user._id,
                 pointsAmount,
                 paymentMethod,
-                paymentReceipt: req.file.path,  // Store the file path of the uploaded receipt
-                status: 'pending',  // Initially, status is 'pending' until admin review
+                paymentReceipt: req.file.path,
+                status: 'pending',
             });
 
             await newTransaction.save();
@@ -364,7 +364,6 @@ const purchasePoints = async (req, res) => {
         }
     });
 };
-
 
 module.exports = {
     registerUser,
@@ -381,6 +380,3 @@ module.exports = {
     getPointTransactionDetails,
     purchasePoints,
 };
-
-
-

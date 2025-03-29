@@ -1,62 +1,87 @@
-const News = require('./models/News');
+// controllers/newsController.js
+const News = require('../models/News');
 
-// Get news list with pagination and filtering
+// GET /admin/news - List news items with optional filtering by title
 const getNewsList = async (req, res) => {
-    const { page = 1, limit = 10, sortBy = 'publicationDate', filter = '' } = req.query;
-
-    try {
-        // Search query if filter (e.g., title contains the search term)
-        const searchQuery = filter ? { title: { $regex: filter, $options: 'i' } } : {};
-
-        const newsArticles = await News.find(searchQuery)
-            .skip((page - 1) * limit)  // Pagination (skip records)
-            .limit(limit)  // Limit the number of records per page
-            .sort({ [sortBy]: -1 });  // Sort by publicationDate or other field
-
-        res.json({
-            news: newsArticles.map(article => ({
-                title: article.title,
-                description: article.description,
-                publicationDate: article.publicationDate,
-                image: article.image,
-                author: article.author,
-            })),
-        });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Error fetching news list' });
-    }
+  const { title } = req.query;
+  let query = {};
+  if (title) {
+    query.title = { $regex: title, $options: 'i' };
+  }
+  try {
+    const newsItems = await News.find(query);
+    res.json({ news: newsItems });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
-// Get news details by newsId
-const getNewsDetails = async (req, res) => {
-    const { newsId } = req.params;
-
-    try {
-        const newsArticle = await News.findById(newsId);
-
-        if (!newsArticle) {
-            return res.status(404).json({ message: 'News article not found' });
-        }
-
-        res.json({
-            news: {
-                title: newsArticle.title,
-                description: newsArticle.description,
-                content: newsArticle.content,
-                publicationDate: newsArticle.publicationDate,
-                image: newsArticle.image,
-                author: newsArticle.author,
-            },
-        });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Error fetching news details' });
+// GET /admin/news/:id - Get a specific news item's details
+const getNewsDetail = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const newsItem = await News.findById(id);
+    if (!newsItem) {
+      return res.status(404).json({ message: 'News item not found' });
     }
+    res.json({ news: newsItem });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
+// POST /admin/news - Create a new news item
+const createNews = async (req, res) => {
+  const { title, description, content, publicationDate, image, author } = req.body;
+  try {
+    const newNews = new News({
+      title,
+      description,
+      content,
+      publicationDate,
+      image,
+      author,
+    });
+    await newNews.save();
+    res.status(201).json({ message: 'News item created successfully', news: newNews });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// PUT /admin/news/:id - Update an existing news item
+const updateNews = async (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
+  try {
+    const newsItem = await News.findByIdAndUpdate(id, updates, { new: true });
+    if (!newsItem) {
+      return res.status(404).json({ message: 'News item not found' });
+    }
+    res.json({ message: 'News item updated successfully', news: newsItem });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// DELETE /admin/news/:id - Delete a news item
+const deleteNews = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const newsItem = await News.findByIdAndDelete(id);
+    if (!newsItem) {
+      return res.status(404).json({ message: 'News item not found' });
+    }
+    res.json({ message: 'News item deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 module.exports = {
-    getNewsList,
-    getNewsDetails
-}
+  getNewsList,
+  getNewsDetail,
+  createNews,
+  updateNews,
+  deleteNews,
+};

@@ -7,7 +7,7 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
-const TopUp = require('./models/TopUp');
+const TopUp = require('../models/TopUp');
 
 const exportModule = {};
 
