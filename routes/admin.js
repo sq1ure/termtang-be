@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 
 // Import admin auth controllers
-const { adminLogin, adminLogout } = require('../controllers/adminAuthController');
+const { adminLogin, adminLogout } = require('../controllers/adminController');
 
 // Import controllers for Games Management
 const { getGameList, getGameDetail, createGame, updateGame, deleteGame } = require('../controllers/gamesController');
@@ -24,7 +24,10 @@ const { getPromotionList, getPromotionDetail, createPromotion, updatePromotion, 
 const { getNewsList, getNewsDetail, createNews, updateNews, deleteNews } = require('../controllers/newsController');
 
 // Import middleware
-const { authenticateToken, admin } = require('../middleware/auth');
+const { authenticateToken, admin } = require('../middleware/adminAuth');
+console.log('🚀 ~ authenticateToken:', typeof authenticateToken);
+console.log('🚀 ~ admin:', typeof admin);
+
 
 // Admin authentication endpoints
 router.post('/login', adminLogin);

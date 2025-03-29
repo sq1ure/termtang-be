@@ -15,7 +15,7 @@ app.use(express.json()); // Using built-in Express JSON parser
 // app.use(cors());
 
 // MongoDB connection
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => console.log('MongoDB Connected'))
     .catch((err) => console.log('MongoDB connection error:', err));
 
@@ -23,7 +23,7 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
 const userRoutes = require('./routes/user');
 const adminRoutes = require('./routes/admin');
 
-app.use('/user', userRoutes);
+// app.use('/user', userRoutes);
 app.use('/admin', adminRoutes);
 
 // Start the server
