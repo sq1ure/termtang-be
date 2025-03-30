@@ -15,13 +15,15 @@ const { getCardList, getCardDetail, createCard, updateCard, deleteCard } = requi
 const { getTransactionList, getTransactionDetail, confirmTransaction, rejectTransaction } = require('../controllers/transactionController');
 
 // Import controllers for User Management
-const { getUserList, getUserDetail, updateUserStatus } = require('../controllers/adminUserController');
+const { getUserList, getUserDetail, updateUserStatus, createAdminUser } = require('../controllers/adminUserController');
 
 // Import controllers for Promotions Management
 const { getPromotionList, getPromotionDetail, createPromotion, updatePromotion, deletePromotion } = require('../controllers/promotionController');
 
 // Import controllers for News Management
 const { getNewsList, getNewsDetail, createNews, updateNews, deleteNews } = require('../controllers/newsController');
+
+const upload = require("../middleware/upload");
 
 // Import middleware
 const { authenticateToken, admin } = require('../middleware/adminAuth');
@@ -36,8 +38,8 @@ router.post('/logout', adminLogout);
 // Games Management Routes
 router.get('/games', authenticateToken, admin, getGameList);
 router.get('/games/:id', authenticateToken, admin, getGameDetail);
-router.post('/games', authenticateToken, admin, createGame);
-router.put('/games/:id', authenticateToken, admin, updateGame);
+router.post("/games", authenticateToken, admin, upload.single("image"), createGame);
+router.put("/games/:id", authenticateToken, admin, upload.single("image"), updateGame);
 router.delete('/games/:id', authenticateToken, admin, deleteGame);
 
 // Card Management Routes
@@ -57,6 +59,7 @@ router.put('/transactions/:id/reject', authenticateToken, admin, rejectTransacti
 router.get('/users', authenticateToken, admin, getUserList);
 router.get('/users/:id', authenticateToken, admin, getUserDetail);
 router.put('/users/:id/status', authenticateToken, admin, updateUserStatus);
+router.post('/users/create', createAdminUser);
 
 // Promotions Management Routes
 router.get('/promotions', authenticateToken, admin, getPromotionList);

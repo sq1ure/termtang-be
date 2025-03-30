@@ -56,8 +56,40 @@ const updateUserStatus = async (req, res) => {
   }
 };
 
+const createAdminUser = async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+
+    // Basic validation
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: 'Please provide username, email, and password.' });
+    }
+
+    // Check if a user with the email already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User already exists.' });
+    }
+
+    // Create a new user with the admin role
+    const newUser = new User({
+      username,
+      email,
+      password,
+      role: 'admin',  // Set the role to admin
+    });
+
+    await newUser.save();
+
+    res.status(201).json({ message: 'Admin user created successfully', user: newUser });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getUserList,
   getUserDetail,
   updateUserStatus,
+  createAdminUser,
 };

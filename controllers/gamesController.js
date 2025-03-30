@@ -33,19 +33,32 @@ const getGameDetail = async (req, res) => {
 
 // Create a new game
 const createGame = async (req, res) => {
-  const { gameName, gameImage, gameInfo, ratePrices, gameStatus, category, discount } = req.body;
+  // Extract fields from req.body
+  const { gameName, gameInfo, ratePrices, gameStatus, category, discount } = req.body;
+  // Use req.file if provided for the game image; otherwise, fallback to any gameImage passed in req.body or a default value
+  const gameImage = req.file ? req.file.path : req.body.gameImage || "";
+  
+  // Attempt to parse ratePrices (if sent as a JSON string from the client)
+  let parsedRatePrices;
+  try {
+    parsedRatePrices = JSON.parse(ratePrices);
+  } catch (e) {
+    // If parsing fails, assume it's already an array
+    parsedRatePrices = ratePrices;
+  }
+
   try {
     const newGame = new Game({
       gameName,
       gameImage,
       gameInfo,
-      ratePrices,
-      gameStatus,
+      ratePrices: parsedRatePrices,
+      gameStatus: gameStatus.toLowerCase(), // Ensure status is lowercase
       category,
       discount,
     });
     await newGame.save();
-    res.status(201).json({ message: 'Game created successfully', game: newGame });
+    res.status(201).json({ message: "Game created successfully", game: newGame });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -54,7 +67,29 @@ const createGame = async (req, res) => {
 // Update an existing game
 const updateGame = async (req, res) => {
   const { id } = req.params;
-  const updates = req.body;
+  // Make a copy of the request body to modify
+  let updates = { ...req.body };
+
+  // If a new file is uploaded, use its path as the game image
+  if (req.file) {
+    updates.gameImage = req.file.path;
+  }
+  
+  // If ratePrices is provided, try to parse it (if sent as a JSON string) or leave it if it's already an array
+  if (updates.ratePrices) {
+    try {
+      // If ratePrices is a string (from FormData), try parsing it
+      updates.ratePrices = JSON.parse(updates.ratePrices);
+    } catch (e) {
+      // Otherwise, assume it's already in the correct format (array)
+    }
+  }
+
+  // Ensure gameStatus is lowercase to match your schema enum (e.g., "active" or "inactive")
+  if (updates.gameStatus) {
+    updates.gameStatus = updates.gameStatus.toLowerCase();
+  }
+
   try {
     const game = await Game.findByIdAndUpdate(id, updates, { new: true });
     if (!game) {
