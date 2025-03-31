@@ -6,7 +6,7 @@ const topUpSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     amount: { type: Number, required: true },
     paymentMethod: { type: String, enum: ['points', 'trueMoney', 'promptpay'], required: true },
-    paymentReceipt: { type: String },  // URL to the payment receipt image (optional, initially null)
+    paymentReceipt: { type: String },
     status: { type: String, enum: ['pending', 'completed', 'rejected'], default: 'pending' },
     transactionDate: { type: Date, default: Date.now },
     gameId: { type: String },
