@@ -10,9 +10,14 @@ const PORT = process.env.PORT || 3002;
 // Middleware
 app.use(express.json()); // Using built-in Express JSON parser
 
-// Optional: Enable CORS if your frontend runs on a different domain
-// const cors = require('cors');
-// app.use(cors());
+// In your Express server (index.js or app.js)
+const cors = require('cors');
+app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000', // Replace with your Next.js app URL
+    credentials: true, // if you need to pass cookies or authorization headers
+  }));
+  
+
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -23,7 +28,7 @@ mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTop
 const userRoutes = require('./routes/user');
 const adminRoutes = require('./routes/admin');
 
-// app.use('/user', userRoutes);
+app.use('/user', userRoutes);
 app.use('/admin', adminRoutes);
 
 // Start the server

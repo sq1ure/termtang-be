@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const TopUp = require('../models/TopUp');
+const PurchaseTransaction = require('../models/PurchaseTransaction');
 
 const exportModule = {};
 
@@ -122,20 +123,25 @@ exportModule.generateReceipt = async (req, res) => {
 };
 
 exportModule.topUpAccount = async (req, res) => {
-    const { amount, paymentMethod } = req.body;
+    const { amount, paymentMethod, cardId, gameId } = req.body;
     const userId = req.user.id;  // Assume user is authenticated and user ID is in the request
 
     try {
-        const newTopUp = new TopUp({
+        const newTopUp = new PurchaseTransaction({
             userId,
             amount,
             paymentMethod,
+            cardId,
+            gameId,
             status: 'pending',  // Initially, the status will be pending
         });
 
         await newTopUp.save();
 
-        res.status(201).json({ message: 'Top-up initiated successfully. Awaiting admin confirmation.' });
+        res.status(201).json({ 
+            message: 'Top-up initiated successfully. Awaiting admin confirmation.',
+            transactionId: newTopUp._id
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Error initiating top-up' });
@@ -152,7 +158,7 @@ exportModule.getTopUpHistory = async (req, res) => {
             filter.status = status;
         }
 
-        const topUps = await TopUp.find(filter)
+        const topUps = await PurchaseTransaction.find(filter)
             .skip((page - 1) * limit)  // Pagination (skip records)
             .limit(limit)  // Limit the number of records per page
             .sort({ transactionDate: -1 });  // Sort by transaction date
@@ -176,7 +182,7 @@ exportModule.getTopUpDetails = async (req, res) => {
     const userId = req.user.id;  // Assume user is authenticated and user ID is in the request
   
     try {
-      const topUp = await TopUp.findOne({ _id: topUpId, userId });
+      const topUp = await PurchaseTransaction.findOne({ _id: topUpId, userId });
   
       if (!topUp) {
         return res.status(404).json({ message: 'Top-up transaction not found' });

@@ -2,7 +2,6 @@
 const PurchaseTransaction = require('../models/PurchaseTransaction');
 
 // GET /admin/transactions
-// List transactions with optional filters
 const getTransactionList = async (req, res) => {
   try {
     const { userId, name, status, paymentMethod, startDate, endDate } = req.query;
@@ -16,16 +15,47 @@ const getTransactionList = async (req, res) => {
       if (startDate) query.createdAt.$gte = new Date(startDate);
       if (endDate) query.createdAt.$lte = new Date(endDate);
     }
+
     const transactions = await PurchaseTransaction.find(query)
-      .populate('userId', 'username email');
-    res.json({ transactions });
+      .populate('userId', 'username')
+      // Populate the game reference if exists; assume the game collection has gameName
+      .populate('gameId', 'gameName')
+      // Populate the card reference if exists; assume the card collection has cardName
+      .populate('cardId', 'cardName');
+
+    const mappedTransactions = transactions.map((tx) => ({
+      transactionId: tx._id,
+      user: {
+        userId: tx.userId ? tx.userId._id : "",
+        username: tx.userId ? tx.userId.username : "",
+      },
+      game: tx.gameId
+        ? {
+            gameId: tx.gameId._id,
+            gameName: tx.gameId.gameName,
+          }
+        : {},
+      card: tx.cardId
+        ? {
+            cardId: tx.cardId._id,
+            cardName: tx.cardId.cardName,
+          }
+        : {},
+      amount: tx.amount,
+      status: tx.status,
+      paymentMethod: tx.paymentMethod,
+      createdAt: tx.createdAt,
+      updatedAt: tx.updatedAt,
+    }));
+
+    res.json(mappedTransactions);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
+
 // GET /admin/transactions/:id
-// Get details of a specific transaction
 const getTransactionDetail = async (req, res) => {
   const { id } = req.params;
   try {
@@ -33,14 +63,45 @@ const getTransactionDetail = async (req, res) => {
       .populate('userId', 'username email')
       .populate('gameId', 'gameName')
       .populate('cardId', 'cardName');
+
     if (!transaction) {
       return res.status(404).json({ message: 'Transaction not found' });
     }
-    res.json({ transaction });
+
+    // Map the transaction document to the desired data structure
+    const mappedTransaction = {
+      transactionId: transaction._id,
+      user: {
+        userId: transaction.userId ? transaction.userId._id : "",
+        username: transaction.userId ? transaction.userId.username : "",
+        email: transaction.userId ? transaction.userId.email : "",
+      },
+      game: transaction.gameId
+        ? {
+            gameId: transaction.gameId._id,
+            gameName: transaction.gameId.gameName,
+          }
+        : {},
+      card: transaction.cardId
+        ? {
+            cardId: transaction.cardId._id,
+            cardName: transaction.cardId.cardName,
+          }
+        : {},
+      amount: transaction.amount,
+      status: transaction.status,
+      paymentMethod: transaction.paymentMethod,
+      proofImage: transaction.proofImage,
+      createdAt: transaction.createdAt,
+      updatedAt: transaction.updatedAt,
+    };
+
+    res.json(mappedTransaction);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
+
 
 // PUT /admin/transactions/:id/confirm
 // Confirm (approve) a transaction

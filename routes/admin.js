@@ -27,9 +27,6 @@ const upload = require("../middleware/upload");
 
 // Import middleware
 const { authenticateToken, admin } = require('../middleware/adminAuth');
-console.log('🚀 ~ authenticateToken:', typeof authenticateToken);
-console.log('🚀 ~ admin:', typeof admin);
-
 
 // Admin authentication endpoints
 router.post('/login', adminLogin);
