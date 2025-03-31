@@ -138,7 +138,7 @@ exportModule.topUpAccount = async (req, res) => {
 
         await newTopUp.save();
 
-        res.status(201).json({ 
+        res.status(201).json({
             message: 'Top-up initiated successfully. Awaiting admin confirmation.',
             transactionId: newTopUp._id
         });
@@ -180,68 +180,69 @@ exportModule.getTopUpHistory = async (req, res) => {
 exportModule.getTopUpDetails = async (req, res) => {
     const { topUpId } = req.params;
     const userId = req.user.id;  // Assume user is authenticated and user ID is in the request
-  
+
     try {
-      const topUp = await PurchaseTransaction.findOne({ _id: topUpId, userId });
-  
-      if (!topUp) {
-        return res.status(404).json({ message: 'Top-up transaction not found' });
-      }
-  
-      res.json({
-        topup: {
-          amount: topUp.amount,
-          paymentMethod: topUp.paymentMethod,
-          paymentReceipt: topUp.paymentReceipt,
-          status: topUp.status,
-          transactionDate: topUp.transactionDate,
-        },
-      });
+        const topUp = await PurchaseTransaction.findOne({ _id: topUpId, userId });
+
+        if (!topUp) {
+            return res.status(404).json({ message: 'Top-up transaction not found' });
+        }
+
+        res.json({
+            topup: {
+                amount: topUp.amount,
+                paymentMethod: topUp.paymentMethod,
+                paymentReceipt: topUp.paymentReceipt,
+                status: topUp.status,
+                transactionDate: topUp.transactionDate,
+            },
+        });
     } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: 'Error fetching top-up details' });
+        console.error(err);
+        res.status(500).json({ message: 'Error fetching top-up details' });
     }
-  };
-  
+};
 
 
-// Set up multer for file upload
+
 const upload = multer({
-    dest: 'uploads/payment_receipts/',  // Directory to store uploaded images
+    dest: '/tmp', // Vercel-safe temporary storage
     fileFilter: (req, file, cb) => {
         if (file.mimetype.startsWith('image/')) {
-            cb(null, true);  // Accept only image files
+            cb(null, true);
         } else {
             cb(new Error('Only image files are allowed!'), false);
         }
     },
 });
 
-// Send proof of payment (upload image)
-exportModule.sendProofOfPayment = async (req, res) => {
-    const { topUpId } = req.params;
-    const userId = req.user.id;  // Assume user is authenticated and user ID is in the request
+exportModule.sendProofOfPayment = [
+    upload.single('file'), // make sure your frontend sends `file` as the field name
+    async (req, res) => {
+        const { topUpId } = req.params;
+        const userId = req.user.id;
 
-    try {
-        const topUp = await TopUp.findOne({ _id: topUpId, userId });
+        try {
+            const topUp = await TopUp.findOne({ _id: topUpId, userId });
 
-        if (!topUp || topUp.status !== 'pending') {
-            return res.status(404).json({ message: 'Top-up transaction not found or not in pending status' });
+            if (!topUp || topUp.status !== 'pending') {
+                return res.status(404).json({ message: 'Top-up transaction not found or not in pending status' });
+            }
+
+            const proofUrl = `/tmp/${req.file.filename}`;
+            topUp.paymentReceipt = proofUrl; // just for demo — store a real link in real use
+            topUp.status = 'pending';
+
+            await topUp.save();
+
+            res.json({ message: 'Proof of payment submitted successfully.' });
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({ message: 'Error submitting proof of payment' });
         }
-
-        // Save the payment receipt image URL (path to uploaded file)
-        const proofUrl = `/uploads/payment_receipts/${req.file.filename}`;
-        topUp.paymentReceipt = proofUrl;
-        topUp.status = 'pending';  // The status remains pending until admin confirms
-
-        await topUp.save();
-
-        res.json({ message: 'Proof of payment submitted successfully.' });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Error submitting proof of payment' });
     }
-};
+];
+
 
 
 module.exports = exportModule;
