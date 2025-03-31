@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
+const cors = require('cors');
 
 dotenv.config();
 
@@ -8,19 +9,34 @@ const app = express();
 const PORT = process.env.PORT || 3002;
 
 // Middleware
-app.use(express.json()); // Using built-in Express JSON parser
+app.use(express.json());
 
-// In your Express server (index.js or app.js)
-const cors = require('cors');
-app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000', // Replace with your Next.js app URL
-    credentials: true, // if you need to pass cookies or authorization headers
-  }));
-  
+// Whitelist for allowed origins
+const whitelist = [
+    'http://localhost:3000', // Your frontend dev URL
+    'https://game-play-topup.vercel.app' // Your production frontend URL
+];
 
+const corsOptions = {
+    origin: function (origin, callback) {
+        if (!origin || whitelist.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+};
+
+app.use(cors(corsOptions));
 
 // MongoDB connection
-mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(process.env.MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+})
     .then(() => console.log('MongoDB Connected'))
     .catch((err) => console.log('MongoDB connection error:', err));
 
